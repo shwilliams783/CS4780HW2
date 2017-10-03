@@ -9,14 +9,14 @@
 
 int main (int argc, char *argv[]) {  
 int o;
-char c;
+char c[1000];
 int shmid;
 key_t key;
 char *shm, *s;
 FILE *fp;
 
 while ((o = getopt (argc, argv, "h")) != -1)
-	switch (c)
+	switch (o)
     {
 		case 'h':
 			perror("Help");
@@ -24,13 +24,24 @@ while ((o = getopt (argc, argv, "h")) != -1)
 		case '?':
 			return 1;
 		default:
-			abort ();
+			break;
     }
 
 fp = fopen("./Input.txt", "r");
 if(fp == NULL){
 	perror("fopen");
 }
+
+printf("Data from the file:\n%s", c);
+while (fgets(c, sizeof(c), fp))
+{
+	printf("%s", c);
+}
+printf("File printing complete!\n");
+
+
+
+fclose(fp);
 	
 return 0;
 }
