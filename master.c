@@ -12,12 +12,13 @@
 
 int main (int argc, char *argv[]) {
 int o;
+int errno;
 int index = 0;
+pid_t pid = getpid();
 char c[BUFFER];
-int shmidStr, shmidArray;
-key_t keyStr = 4780;
+int shmidArray;
 key_t keyArray = 8675;
-char *shm, *shmArrayPtr[BUFFER];
+char *shmArrayPtr[BUFFER];
 char shmArray[MAXPROC][BUFFER];
 FILE *fp;
 
@@ -41,26 +42,12 @@ if(fp == NULL)
         perror("fopen");
 }
 
-/* Create shared memory segment for a string */
-if ((shmidStr = shmget(keyStr, BUFFER, IPC_CREAT | 0666)) < 0)
-{
-    perror("shmget: shm");
-    exit(1);
-}
-
 /* Create shared memory segment for an array of strings */
 shmidArray = shmget(keyArray, sizeof(char[MAXPROC][BUFFER]), IPC_CREAT | 0666);
 if (shmidArray < 0)
 {
 	perror("shmget: shmArray");
 	exit(1);
-}
-
-/* Point shm to shared memory */
-if ((shm = shmat(shmidStr, NULL, 0)) == (char *) -1)
-{
-    perror("shmat: shm");
-    exit(1);
 }
 
 /* Point shmArray to shared memory */
@@ -71,31 +58,42 @@ if ((void *)shmArray == (void *)-1)
     exit(1);
 }
 
-/* Read the file single string mode */
-/*while (fgets(shm, BUFFER, fp))
-{
-        printf("%d, %s", (index), shm);
-        index++;
-}
-printf("File printing complete!\n");*/
-
-
 /* Read the file string array mode */
 for(index = 0; index < 95; index++)
 {
 	fgets(shmArray[index], BUFFER, fp);
-	printf("%d, %s", index, shmArray[index]);
+	/*printf("%d, %s", index, shmArray[index]);*/
 }
-printf("File printing complete!\n");
 
+/* Fork off child processes */
+for(index = 0; index < 30; index++)
+{
+	if(index % 5 == 0 && pid != 0)
+	{
+		perror("Parent process prints after fork()");
+		pid = fork();
+	}
+	else if(index % 5 == 0 && pid == 0)
+	{
+		execl("./palin", "palin", "-1", (char*)0);
+	}
+}
 
 /* Release shared memory */
-shm = NULL;
-shmdt(shm);
-shmctl(shmidStr, IPC_RMID, NULL);
-shmdt(shmArray);
-shmctl(shmidArray, IPC_RMID, NULL);
-fclose(fp);
-
+if(pid != 0)
+{
+	errno = shmdt(*shmArrayPtr);
+	if(errno == -1)
+	{
+		perror("shmdt: shmArray");
+	}
+	errno = shmctl(shmidArray, IPC_RMID, NULL);
+	if(errno == -1)
+	{
+		perror("shmctl: shmidArray");
+	}
+	fclose(fp);
+	*shmArrayPtr = NULL;
+}
 return 0;
 }
