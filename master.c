@@ -16,6 +16,9 @@ int errno;
 int index = 0;
 pid_t pid = getpid();
 char c[BUFFER];
+char idArg[33];
+char indexArg[33];
+char keyArg[33];
 int shmidArray;
 key_t keyArray = 8675;
 char *shmArrayPtr[BUFFER];
@@ -39,14 +42,14 @@ while ((o = getopt (argc, argv, "h")) != -1)
 fp = fopen("./Input.txt", "r");
 if(fp == NULL)
 {
-        perror("fopen");
+        perror("MASTER: fopen");
 }
 
 /* Create shared memory segment for an array of strings */
 shmidArray = shmget(keyArray, sizeof(char[MAXPROC][BUFFER]), IPC_CREAT | 0666);
 if (shmidArray < 0)
 {
-	perror("shmget: shmArray");
+	perror("MASTER: shmget: shmArray");
 	exit(1);
 }
 
@@ -54,46 +57,50 @@ if (shmidArray < 0)
 *shmArrayPtr = shmat(shmidArray, NULL, 0);
 if ((void *)shmArray == (void *)-1)
 {
-    perror("shmat: shmArray");
+    perror("MASTER: shmat: shmArray");
     exit(1);
 }
+
+snprintf(keyArg, 33, "%d", shmidArray);
 
 /* Read the file string array mode */
 for(index = 0; index < 95; index++)
 {
-	fgets(shmArray[index], BUFFER, fp);
-	/*printf("%d, %s", index, shmArray[index]);*/
+	fgets((*shmArrayPtr + (index*BUFFER)), BUFFER, fp);
+	/*printf("%d, %s", index, (*shmArrayPtr + (index * BUFFER)));*/
 }
 
 /* Fork off child processes */
-for(index = 0; index < 30; index++)
+for(index = 0; index < 3; index++)
 {
-	if(index % 5 == 0 && pid != 0)
+	if(pid != 0)
 	{
 		perror("Parent process prints after fork()");
 		pid = fork();
 	}
-	else if(index % 5 == 0 && pid == 0)
+	else if(pid == 0)
 	{
-		execl("./palin", "palin", "-1", (char*)0);
+		snprintf(idArg, 10, "%d", index);
+		snprintf(indexArg, 10, "%d", ((index-1)*5));		
+		execl("./palin", "palin", idArg, indexArg, keyArg, (char*)0);
 	}
 }
 
 /* Release shared memory */
-if(pid != 0)
+/*if(pid != 0)
 {
 	errno = shmdt(*shmArrayPtr);
 	if(errno == -1)
 	{
-		perror("shmdt: shmArray");
+		perror("MASTER: shmdt: shmArray");
 	}
 	errno = shmctl(shmidArray, IPC_RMID, NULL);
 	if(errno == -1)
 	{
-		perror("shmctl: shmidArray");
+		perror("MASTER: shmctl: shmidArray");
 	}
 	fclose(fp);
 	*shmArrayPtr = NULL;
-}
+}*/
 return 0;
 }
