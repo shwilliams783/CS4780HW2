@@ -12,6 +12,8 @@
 
 
 
+
+
 int main (int argc, char *argv[]) {
 enum state { idle, want_in, in_cs };
 int o;
