@@ -14,170 +14,100 @@
 
 
 
+/* process(const int i ) {
+	do {
+		
+			
+	} while ( 1 );
+} */
+
 int main (int argc, char *argv[]) {
 enum state { idle, want_in, in_cs };
-int o;
+int i;
+int j;
+int palindrome = 1;
 int errno;
-int index = 0;
+int id = atoi(argv[1]);
+int index = atoi(argv[2]);
+int arrayKey = atoi(argv[3]);
+int turnKey = atoi(argv[4]);
+int flagKey = atoi(argv[5]);
 pid_t pid = getpid();
-char c[BUFFER];
-char idArg[33];
-char indexArg[33];
-char arrayArg[33];
-char turnArg[33];
-char flagArg[33];
 int shmidArray;
-int shmidTurn;
-int shmidFlag;
 key_t keyArray = 8675;
-key_t keyTurn = 1138;
-key_t keyFlag = 1123;
 char *shmArrayPtr[BUFFER];
+char *startPtr;
+char *endPtr;
 int *turn;
-enum state *flag;/*Flag corresponding to each process in shared memory */
+enum state *flag;
 FILE *fp;
 
-
-/* Options */
-while ((o = getopt (argc, argv, "h")) != -1)
-        switch (o)
-    {
-                case 'h':
-                        perror("Help");
-                        break;
-                case '?':
-                        return 1;
-                default:
-                        break;
-    }
-
-/* Open the Input file */
-fp = fopen("./Input.txt", "r");
-if(fp == NULL)
-{
-        perror("MASTER: fopen");
-}
-
-/* Create shared memory segment for an array of strings */
-shmidArray = shmget(keyArray, sizeof(char[MAXPROC][BUFFER]), IPC_CREAT | 0666);
-if (shmidArray < 0)
-{
-	perror("MASTER: shmget: shmidArray");
-	exit(1);
-}
-
 /* Point shmArrayPtr to shared memory */
-*shmArrayPtr = shmat(shmidArray, NULL, 0);
+*shmArrayPtr = shmat(arrayKey, NULL, 0);
 if ((void *)shmArrayPtr == (void *)-1)
 {
-    perror("MASTER: shmat: shmArrayPtr");
+    perror("PALIN: shmat: arrayKey");
     exit(1);
-}
-
-/* Create shared memory segment for an int */
-shmidTurn = shmget(keyTurn, sizeof(int), IPC_CREAT | 0666);
-if (shmidTurn < 0)
-{
-	perror("MASTER: shmget: shmidTurn");
-	exit(1);
 }
 
 /* Point turn to shared memory */
-turn = shmat(shmidTurn, NULL, 0);
+turn = shmat(turnKey, NULL, 0);
 if ((void *)turn == (void *)-1)
 {
-    perror("MASTER: shmat: turn");
+    perror("PALIN: shmat: turnKey");
     exit(1);
-}
-
-/* Set turn to 1*/
-*turn = 1;
-
-/* Create shared memory segment for an array of states */
-shmidFlag = shmget(keyFlag, 76, IPC_CREAT | 0666);
-if (shmidFlag < 0)
-{
-	perror("MASTER: shmget: shmidFlag");
-	exit(1);
 }
 
 /* Point flag to shared memory */
-flag = shmat(shmidFlag, NULL, 0);
+flag = shmat(flagKey, NULL, 0);
 if ((void *)flag == (void *)-1)
 {
-    perror("MASTER: shmat: flag");
+    perror("PALIN: shmat: flagKey");
     exit(1);
 }
 
-
-/* Convert the Array, Turn, and Flag keys into strings for EXEC parameters */
-sprintf(arrayArg, "%d", shmidArray);
-sprintf(turnArg, "%d", shmidTurn);
-sprintf(flagArg, "%d", shmidFlag); 
-
-/* Read the file string array mode */
-for(index = 0; index < 95; index++)
+printf("\nPalin.c Executed!\n");
+for(i = 0; i < 5; i++)
 {
-	fgets((*shmArrayPtr + (index*BUFFER)), BUFFER, fp);
-	/*printf("%d, %s", index, (*shmArrayPtr + (index * BUFFER)));*/
+	do{
+		*(flag + id*4) = want_in; /* Raise my flag */
+		j = *turn; /* Set local variable */
+		/* wait until its my turn */
+		while( j != id )
+			/* j = ( *(flag + j*4) != idle ) ? turn : (( j + 1 ) % 19) + 1; */
+			if(*(flag + j*4) != idle)
+				j = *turn;
+			else
+				j = (( j + 1 ) % 19) + 1;
+			/* Declare intention to enter critical section */
+			*(flag + id*4) = in_cs;
+			/* Check that no one else is in critical section */
+			for( j = 1; j < 20; j++ )
+				if(( j != id ) && ( *(flag + j*4) == in_cs ))
+					break;
+	}while(( j < 20 ) || ( *turn != id && *(flag + *turn*4) != idle ));
+	/*  Assign turn to self and enter critical section */
+	*turn = id;
+	printf("%d\t%d\t%s\n", pid, index, (*shmArrayPtr + (index*BUFFER))); /* Critical Section */
+	/*  Exit section */
+	j = ((*turn + 1) % 19) + 1;
+	while(*(flag + j*4) == idle)
+		j = ((j + 1) % 19) + 1;
+	/*  Assign turn to next waiting process; change own flag to idle */
+	*turn = j; *(flag + id*4) = idle;
+	index++; /* Remainder Section */
 }
 
-/* Fork off child processes */
-for(index = 0; index < 20; index++)
+errno = shmdt(*shmArrayPtr);
+if(errno == -1)
 {
-	if(pid != 0)
-	{
-		perror("Parent process prints after fork()");
-		pid = fork();
-	}
-	else if(pid == 0)
-	{
-		snprintf(idArg, 10, "%d", index);
-		snprintf(indexArg, 10, "%d", ((index-1)*5));		
-		execl("./palin", "palin", idArg, indexArg, arrayArg, turnArg, flagArg, (char*)0);
-	}
+	perror("PALIN: shmdt: shmArrayPtr");
 }
-
-/* Release shared memory */
-/*if(pid != 0)
+/*errno = shmctl(arrayKey, IPC_RMID, NULL);
+if(errno == -1)
 {
-	errno = shmdt(*shmArrayPtr);
-	if(errno == -1)
-	{
-		perror("MASTER: shmdt: shmArray");
-	}
-	errno = shmctl(shmidArray, IPC_RMID, NULL);
-	if(errno == -1)
-	{
-		perror("MASTER: shmctl: shmidArray");
-	}
-	
-	errno = shmdt(*turn);
-	if(errno == -1)
-	{
-		perror("MASTER: shmdt: turn");
-	}
-	errno = shmctl(shmidTurn, IPC_RMID, NULL);
-	if(errno == -1)
-	{
-		perror("MASTER: shmctl: shmidTurn");
-	}
-	
-	errno = shmdt(*flag);
-	if(errno == -1)
-	{
-		perror("MASTER: shmdt: flag");
-	}
-	errno = shmctl(shmidFlag, IPC_RMID, NULL);
-	if(errno == -1)
-	{
-		perror("MASTER: shmctl: shmidFlag");
-	}
-	
-	fclose(fp);
-	*shmArrayPtr = NULL;
-	*turn = NULL;
-	*flag = NULL;
+	perror("PALIN: shmctl: arrayKey");
 }*/
+
 return 0;
 }
