@@ -32,7 +32,7 @@ int shmidFlag;
 key_t keyArray = 8675;
 key_t keyTurn = 1138;
 key_t keyFlag = 1123;
-char *shmArrayPtr[BUFFER];
+char *shmArrayPtr;
 int *turn;
 enum state *flag;/*Flag corresponding to each process in shared memory */
 FILE *fp;
@@ -67,7 +67,7 @@ if (shmidArray < 0)
 }
 
 /* Point shmArrayPtr to shared memory */
-*shmArrayPtr = shmat(shmidArray, NULL, 0);
+shmArrayPtr = shmat(shmidArray, NULL, 0);
 if ((void *)shmArrayPtr == (void *)-1)
 {
     perror("MASTER: shmat: shmArrayPtr");
@@ -118,12 +118,12 @@ sprintf(flagArg, "%d", shmidFlag);
 /* Read the file string array mode */
 for(index = 0; index < 95; index++)
 {
-	fgets((*shmArrayPtr + (index*BUFFER)), BUFFER, fp);
-	/*printf("%d, %s", index, (*shmArrayPtr + (index * BUFFER)));*/
+	fgets((shmArrayPtr + (index*BUFFER)), BUFFER, fp);
+	/* printf("%d, %s", index, (shmArrayPtr + (index * BUFFER))); */
 }
 
 /* Fork off child processes */
-for(index = 0; index < 20; index++)
+for(index = 0; index < 3; index++)
 {
 	if(pid != 0)
 	{
