@@ -18,8 +18,9 @@ int main (int argc, char *argv[]) {
 enum state { idle, want_in, in_cs };
 int o;
 int errno;
+int returnStatus;
 int index = 0;
-pid_t pid = getpid();
+pid_t pid[20] = {getpid()};
 char c[BUFFER];
 char idArg[33];
 char indexArg[33];
@@ -123,14 +124,24 @@ for(index = 0; index < 95; index++)
 }
 
 /* Fork off child processes */
-for(index = 0; index < 3; index++)
+for(index = 0; index < 20; index++)
 {
-	if(pid != 0)
+	if(pid[index] != 0)
 	{
+		/* printf("Child Process Loop - PID = %d, Index = %d\n", pid[index], index); */
 		perror("Parent process prints after fork()");
-		pid = fork();
+		pid[index+1] = fork();
+		/*if(pid[index] != 0)
+		{
+			printf("CP Inner Loop - CPID = %d, Index = %d\n", pid[index+1], index+1);
+			waitpid(pid[index+1], &returnStatus, 0);
+			if(returnStatus)
+			{
+				perror("MASTER: child terminated with an error!");
+			}
+		}*/
 	}
-	else if(pid == 0)
+	else if(pid[index] == 0)
 	{
 		snprintf(idArg, 10, "%d", index);
 		snprintf(indexArg, 10, "%d", ((index-1)*5));		
