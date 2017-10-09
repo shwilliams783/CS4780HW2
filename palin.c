@@ -77,21 +77,22 @@ endPtr = currentPtr + (strlen(currentPtr)-1);
 
 for(i = 0; i < 5; i++)
 {
+	/* printf("currentPtr = %s, strlen = %d, endPtr[0] = %c\n", currentPtr, strlen(currentPtr), endPtr[0]);*/
 	palindrome = 1;
 	for(k = 0; k < strlen(currentPtr); k++)
 	{
 		if(currentPtr[k] != endPtr[0-k]) /* Character mismatch; not a palindrome */
 		{
-			printf("Not a palindrome at index = %d: %c != %c\n", (index), currentPtr[k], endPtr[0-k]);
+			/* printf("Not a palindrome at index = %d: %c != %c\n", (index), currentPtr[k], endPtr[0-k]); */
 			palindrome = 0;
 			break;
 		}
 	}
 
-	if(palindrome)
+	/*if(palindrome)
 	{
 		printf("Palindrome at index = %d: %s\n", index, currentPtr);
-	}
+	}*/
 	
 	do{
 		*(flag + id*4) = want_in; /* Raise my flag */
@@ -113,20 +114,47 @@ for(i = 0; i < 5; i++)
 	/*  Assign turn to self and enter critical section */
 	*turn = id;
 	sleep(rand()%2);
-	printf("%d\t%d\t%s\n", pid, index, (shmArrayPtr + (index*BUFFER))); /* Critical Section */
+	/* printf("%d\t%d\t%s\n", pid, index, (shmArrayPtr + (index*BUFFER))); */ /* Critical Section */
+	if(palindrome)
+	{
+		/* printf("Palindrome at index = %d: %s\n", index, currentPtr); */
+		/* Open palin.out for appending */
+		fp = fopen("./palin.out", "a");
+		if(fp == NULL)
+		{
+				perror("PALIN: fopen palin.out");
+		}
+		fprintf(fp, "%d\t%d\t%s\n", pid, index, currentPtr);
+		fclose(fp);		
+	}
+	else
+	{
+		/* printf("Not a palindrome at index = %d: %c != %c\n", (index), currentPtr[k], endPtr[0-k]); */
+		/* Open Palin.out for appending */
+		fp = fopen("./nopalin.out", "a");
+		if(fp == NULL)
+		{
+				perror("PALIN: fopen nopalin.out");
+		}
+		fprintf(fp, "%d\t%d\t%s\n", pid, index, currentPtr);
+		fclose(fp);
+	}
 	sleep(rand()%2);
 	/*  Exit section */
-	j = ((*turn + 1) % 19) + 1;
+	j = (((*turn + 1) % 19) + 1);
 	while(*(flag + j*4) == idle)
-		j = ((j + 1) % 19) + 1;
+		j = (((j + 1) % 19) + 1);
 	/*  Assign turn to next waiting process; change own flag to idle */
-	*turn = j; *(flag + id*4) = idle;
+	*turn = j; (*(flag + id*4)) = idle;
 	/* printf("currentPtr = %s, strlen = %d, endPtr[0] = %c\n", currentPtr, strlen(currentPtr), endPtr[0]); */
 	index++; /* Remainder Section */
-	currentPtr = strtok(startPtr+index*1000, "\n");
+	startPtr = (startPtr + BUFFER);
+	currentPtr = strtok(startPtr, "\n");
 	endPtr = currentPtr + (strlen(currentPtr) - 1);
-	
+	/* printf("*turn = %d\t*flag(id) = %d\ti = %d\n", *turn, (*(flag + id*4)), i); */
 }
+
+printf("Job complete! Palin #%d\n", id);
 
 errno = shmdt(shmArrayPtr);
 if(errno == -1)
