@@ -3,21 +3,39 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
 #define BUFFER 1000
-#define MAXPROC 95
+#define MAXPROC 96
+
+enum state { idle, want_in, in_cs };
+int errno;
+char *shmArrayPtr;
+int *turn;
+enum state *flag;
+
+void sigIntHandler(int signum)
+{
+	perror("Caught SIGINT! Terminating process.");
+	
+	errno = shmdt(shmArrayPtr);
+	if(errno == -1)
+	{
+		perror("PALIN: shmdt: shmArrayPtr");
+	}
+	
+	exit(signum);
+}
 
 
 int main (int argc, char *argv[]) {
-enum state { idle, want_in, in_cs };
 int i;
 int j;
 int k;
 int palindrome = 1;
-int errno;
 int id = atoi(argv[1]);
 int index = atoi(argv[2]);
 int arrayKey = atoi(argv[3]);
@@ -28,14 +46,14 @@ int shmidArray;
 key_t keyArray = 8675;
 key_t keyTurn = 1138;
 key_t keyFlag = 1123;
-char *shmArrayPtr;
 char *startPtr;
 char *endPtr;
 char *currentPtr;
-int *turn;
-enum state *flag;
 FILE *fp;
+signal(SIGINT, sigIntHandler);
 
+/* Identify self with PID */
+/* printf("Palin.c ID# %d\tPID:%d\n", id, pid); */
 
 /* Seed random number generator */
 srand(pid * time(NULL));
@@ -64,7 +82,7 @@ if ((void *)flag == (void *)-1)
     exit(1);
 }
 
-printf("\nPalin.c Executed!\n");
+/* printf("\nPalin.c Executed!\n"); */
 
 
 startPtr = (shmArrayPtr + (index*BUFFER));
@@ -154,18 +172,13 @@ for(i = 0; i < 5; i++)
 	/* printf("*turn = %d\t*flag(id) = %d\ti = %d\n", *turn, (*(flag + id*4)), i); */
 }
 
-printf("Job complete! Palin #%d\n", id);
+/* printf("Job complete! Palin #%d\n", id); */
 
 errno = shmdt(shmArrayPtr);
 if(errno == -1)
 {
 	perror("PALIN: shmdt: shmArrayPtr");
 }
-/*errno = shmctl(arrayKey, IPC_RMID, NULL);
-if(errno == -1)
-{
-	perror("PALIN: shmctl: arrayKey");
-}*/
 
 return 0;
 }
