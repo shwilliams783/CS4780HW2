@@ -1,6 +1,6 @@
 all : master palin
 clean :
-        rm *.o master palin
+        rm master.o palin.o palin.out nopalin.out
 master : master.o
         gcc -g -o master master.o
 master.o : master.c
