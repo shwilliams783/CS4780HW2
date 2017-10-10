@@ -4,6 +4,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -12,6 +13,7 @@
 #define MAXPROC 96
 
 int errno;
+char errmsg[100];
 enum state { idle, want_in, in_cs };
 int shmidArray;
 int shmidTurn;
@@ -22,42 +24,49 @@ enum state *flag;
 
 void sigIntHandler(int signum)
 {
-	perror("Caught SIGINT! Killing all child processes.");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: Caught SIGINT! Killing all child processes.");
+	perror(errmsg);	
 	
 	errno = shmdt(shmArrayPtr);
 	if(errno == -1)
 	{
-		perror("MASTER: shmdt: shmArray");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(shmArrayPtr)");
+		perror(errmsg);	
 	}
 	
 	errno = shmctl(shmidArray, IPC_RMID, NULL);
 	if(errno == -1)
 	{
-		perror("MASTER: shmctl: shmidArray");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidArray)");
+		perror(errmsg);	
 	}
 
 	errno = shmdt(turn);
 	if(errno == -1)
 	{
-		perror("MASTER: shmdt: turn");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(turn)");
+		perror(errmsg);	
 	}
 	
 	errno = shmctl(shmidTurn, IPC_RMID, NULL);
 	if(errno == -1)
 	{
-		perror("MASTER: shmctl: shmidTurn");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidTurn)");
+		perror(errmsg);	
 	}
 
 	errno = shmdt(flag);
 	if(errno == -1)
 	{
-		perror("MASTER: shmdt: flag");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(flag)");
+		perror(errmsg);	
 	}
 	
 	errno = shmctl(shmidFlag, IPC_RMID, NULL);
 	if(errno == -1)
 	{
-		perror("MASTER: shmctl: shmidFlag");
+		snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidFlag)");
+		perror(errmsg);	
 	}
 	
 	exit(signum);
@@ -90,8 +99,9 @@ while ((o = getopt (argc, argv, "h")) != -1)
         switch (o)
     {
                 case 'h':
-                        perror("Help");
-                        break;
+                        perror("Master.c reads all lines from Input.txt and creates up to 19\nchild processes to sort palindromes from non-palindromes.\n\nResults are appended to palin.out and nopalin.out\n\nUsage: ./master\n");
+                        exit(1);
+						break;
                 case '?':
                         return 1;
                 default:
@@ -102,14 +112,16 @@ while ((o = getopt (argc, argv, "h")) != -1)
 fp = fopen("./Input.txt", "r");
 if(fp == NULL)
 {
-        perror("MASTER: fopen");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: fopen(fp)");
+	perror(errmsg);	
 }
 
 /* Create shared memory segment for an array of strings */
 shmidArray = shmget(keyArray, sizeof(char[MAXPROC][BUFFER]), IPC_CREAT | 0666);
 if (shmidArray < 0)
 {
-	perror("MASTER: shmget: shmidArray");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmget(keyArray...)");
+	perror(errmsg);
 	exit(1);
 }
 
@@ -117,7 +129,8 @@ if (shmidArray < 0)
 shmArrayPtr = shmat(shmidArray, NULL, 0);
 if ((void *)shmArrayPtr == (void *)-1)
 {
-    perror("MASTER: shmat: shmArrayPtr");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmat(shmidArray)");
+	perror(errmsg);
     exit(1);
 }
 
@@ -125,7 +138,8 @@ if ((void *)shmArrayPtr == (void *)-1)
 shmidTurn = shmget(keyTurn, sizeof(int), IPC_CREAT | 0666);
 if (shmidTurn < 0)
 {
-	perror("MASTER: shmget: shmidTurn");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmget(keyTurn...)");
+	perror(errmsg);
 	exit(1);
 }
 
@@ -133,7 +147,8 @@ if (shmidTurn < 0)
 turn = shmat(shmidTurn, NULL, 0);
 if ((void *)turn == (void *)-1)
 {
-    perror("MASTER: shmat: turn");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmat(shmidTurn)");
+	perror(errmsg);
     exit(1);
 }
 
@@ -144,7 +159,8 @@ if ((void *)turn == (void *)-1)
 shmidFlag = shmget(keyFlag, 76, IPC_CREAT | 0666);
 if (shmidFlag < 0)
 {
-	perror("MASTER: shmget: shmidFlag");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmget(keyFlag...)");
+	perror(errmsg);
 	exit(1);
 }
 
@@ -152,7 +168,8 @@ if (shmidFlag < 0)
 flag = shmat(shmidFlag, NULL, 0);
 if ((void *)flag == (void *)-1)
 {
-    perror("MASTER: shmat: flag");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmat(shmidFlag)");
+	perror(errmsg);
     exit(1);
 }
 
@@ -176,7 +193,6 @@ for(index = 0; index < 20; index++)
 	if(pid[index] != 0)
 	{
 		/* printf("Child Process Loop - PID = %d, Index = %d\n", pid[index], index); */
-		perror("Parent process prints after fork()");
 		pid[index+1] = fork();
 		/*if(pid[index] != 0)
 		{
@@ -202,42 +218,51 @@ for(i = 0; i < 60; i++)
 	sleep(1);
 }
 
-perror("Time is up!");
+snprintf(errmsg, sizeof(errmsg), "MASTER: Time is up! Kill all running child processes");
+perror(errmsg);
 
 /* Release shared memory */
 errno = shmdt(shmArrayPtr);
 if(errno == -1)
 {
-	perror("MASTER: shmdt: shmArray");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(shmArrayPtr)");
+	perror(errmsg);	
 }
+
 errno = shmctl(shmidArray, IPC_RMID, NULL);
 if(errno == -1)
 {
-	perror("MASTER: shmctl: shmidArray");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidArray)");
+	perror(errmsg);	
 }
 
 errno = shmdt(turn);
 if(errno == -1)
 {
-	perror("MASTER: shmdt: turn");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(turn)");
+	perror(errmsg);	
 }
+
 errno = shmctl(shmidTurn, IPC_RMID, NULL);
 if(errno == -1)
 {
-	perror("MASTER: shmctl: shmidTurn");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidTurn)");
+	perror(errmsg);	
 }
 
 errno = shmdt(flag);
 if(errno == -1)
 {
-	perror("MASTER: shmdt: flag");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmdt(flag)");
+	perror(errmsg);	
 }
+
 errno = shmctl(shmidFlag, IPC_RMID, NULL);
 if(errno == -1)
 {
-	perror("MASTER: shmctl: shmidFlag");
+	snprintf(errmsg, sizeof(errmsg), "MASTER: shmctl(shmidFlag)");
+	perror(errmsg);	
 }
-
 for(i = 1; i < 20; i++)
 {
 	/* printf("Killing process #%d\n", pid[i]); */
