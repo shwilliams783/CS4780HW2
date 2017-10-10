@@ -1,7 +1,5 @@
 # CS4760HW2
 
-# CS4760HW2
-
 # Command Line Options
 
 # -h:
@@ -10,7 +8,9 @@ child processes to sort palindromes from non-palindromes.
 
 Results are appended to palin.out and nopalin.out
 
-Usage: ./master\n");
+# Usage:
+
+./master
 
 # Original Assignment
 CS 4760 Operating Systems
