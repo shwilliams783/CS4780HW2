@@ -4,6 +4,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -13,20 +14,35 @@
 
 enum state { idle, want_in, in_cs };
 int errno;
+char errmsg[100];
+int id;
 char *shmArrayPtr;
 int *turn;
 enum state *flag;
 
 void sigIntHandler(int signum)
 {
-	perror("Caught SIGINT! Terminating process.");
-	
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: Caught SIGINT! Terminating process.", id);
+	perror(errmsg);	
 	errno = shmdt(shmArrayPtr);
 	if(errno == -1)
 	{
-		perror("PALIN: shmdt: shmArrayPtr");
+		snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(shmArrayPtr)", id);
+		perror(errmsg);
 	}
-	
+	errno = shmdt(turn);
+	if(errno == -1)
+	{
+		snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(turn).", id);
+		perror(errmsg);
+	}
+
+	errno = shmdt(flag);
+	if(errno == -1)
+	{
+		snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(flag).", id);
+		perror(errmsg);
+	}
 	exit(signum);
 }
 
@@ -36,7 +52,6 @@ int i;
 int j;
 int k;
 int palindrome = 1;
-int id = atoi(argv[1]);
 int index = atoi(argv[2]);
 int arrayKey = atoi(argv[3]);
 int turnKey = atoi(argv[4]);
@@ -51,6 +66,12 @@ char *endPtr;
 char *currentPtr;
 FILE *fp;
 signal(SIGINT, sigIntHandler);
+time_t currentTime;
+struct tm* timeInfo;
+char timeString[100];
+
+id = atoi(argv[1]);
+
 
 /* Identify self with PID */
 /* printf("Palin.c ID# %d\tPID:%d\n", id, pid); */
@@ -62,7 +83,8 @@ srand(pid * time(NULL));
 shmArrayPtr = shmat(arrayKey, NULL, 0);
 if ((void *)shmArrayPtr == (void *)-1)
 {
-    perror("PALIN: shmat: arrayKey");
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmat(arrayKey).", id);
+	perror(errmsg);	
     exit(1);
 }
 
@@ -70,7 +92,8 @@ if ((void *)shmArrayPtr == (void *)-1)
 turn = shmat(turnKey, NULL, 0);
 if ((void *)turn == (void *)-1)
 {
-    perror("PALIN: shmat: turnKey");
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmat(turnKey).", id);
+	perror(errmsg);	
     exit(1);
 }
 
@@ -78,7 +101,8 @@ if ((void *)turn == (void *)-1)
 flag = shmat(flagKey, NULL, 0);
 if ((void *)flag == (void *)-1)
 {
-    perror("PALIN: shmat: flagKey");
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmat(flagKey).", id);
+	perror(errmsg);
     exit(1);
 }
 
@@ -112,6 +136,11 @@ for(i = 0; i < 5; i++)
 		printf("Palindrome at index = %d: %s\n", index, currentPtr);
 	}*/
 	
+	currentTime = time(NULL);
+    timeInfo = localtime(&currentTime);
+	strftime(timeString, 26, "%H:%M:%S", timeInfo);
+	snprintf(errmsg, sizeof(errmsg), "Palin\t%d\tattempting to enter critical section at time:\t%s\t", id, timeString);
+	perror(errmsg);
 	do{
 		*(flag + id*4) = want_in; /* Raise my flag */
 		j = *turn; /* Set local variable */
@@ -131,8 +160,15 @@ for(i = 0; i < 5; i++)
 	}while(( j < 20 ) || ( *turn != id && *(flag + *turn*4) != idle ));
 	/*  Assign turn to self and enter critical section */
 	*turn = id;
+	/* Mark time of entering critical section */
+	currentTime = time(NULL);
+    timeInfo = localtime(&currentTime);
+	strftime(timeString, 26, "%H:%M:%S", timeInfo);
+	snprintf(errmsg, sizeof(errmsg), "Palin\t%d\thas entered critical section at time:\t\t%s\t", id, timeString);
+	perror(errmsg);
+	/* Critical Section */
 	sleep(rand()%2);
-	/* printf("%d\t%d\t%s\n", pid, index, (shmArrayPtr + (index*BUFFER))); */ /* Critical Section */
+	/* printf("%d\t%d\t%s\n", pid, index, (shmArrayPtr + (index*BUFFER))); */ 	
 	if(palindrome)
 	{
 		/* printf("Palindrome at index = %d: %s\n", index, currentPtr); */
@@ -140,7 +176,8 @@ for(i = 0; i < 5; i++)
 		fp = fopen("./palin.out", "a");
 		if(fp == NULL)
 		{
-				perror("PALIN: fopen palin.out");
+			snprintf(errmsg, sizeof(errmsg), "PALIN %d: fopen(palin.out).", id);
+			perror(errmsg);
 		}
 		fprintf(fp, "%d\t%d\t%s\n", pid, index, currentPtr);
 		fclose(fp);		
@@ -152,13 +189,20 @@ for(i = 0; i < 5; i++)
 		fp = fopen("./nopalin.out", "a");
 		if(fp == NULL)
 		{
-				perror("PALIN: fopen nopalin.out");
+			snprintf(errmsg, sizeof(errmsg), "PALIN %d: fopen(nopalin.out).", id);
+			perror(errmsg);
 		}
 		fprintf(fp, "%d\t%d\t%s\n", pid, index, currentPtr);
 		fclose(fp);
 	}
 	sleep(rand()%2);
-	/*  Exit section */
+	/*  Exit critical section */
+	/* Mark time of entering critical section */
+	currentTime = time(NULL);
+    timeInfo = localtime(&currentTime);
+	strftime(timeString, 26, "%H:%M:%S", timeInfo);
+	snprintf(errmsg, sizeof(errmsg), "Palin\t%d\thas exited critical section at time:\t\t%s\t", id, timeString);
+	perror(errmsg);
 	j = (((*turn + 1) % 19) + 1);
 	while(*(flag + j*4) == idle)
 		j = (((j + 1) % 19) + 1);
@@ -177,7 +221,22 @@ for(i = 0; i < 5; i++)
 errno = shmdt(shmArrayPtr);
 if(errno == -1)
 {
-	perror("PALIN: shmdt: shmArrayPtr");
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(shmArrayPtr).", id);
+	perror(errmsg);
+}
+
+errno = shmdt(turn);
+if(errno == -1)
+{
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(turn).", id);
+	perror(errmsg);
+}
+
+errno = shmdt(flag);
+if(errno == -1)
+{
+	snprintf(errmsg, sizeof(errmsg), "PALIN %d: shmdt(flag).", id);
+	perror(errmsg);
 }
 
 return 0;
