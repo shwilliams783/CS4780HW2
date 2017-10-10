@@ -1,4 +1,16 @@
-# CS4780HW2
+# CS4760HW2
+
+# CS4760HW2
+
+# Command Line Options
+
+# -h:
+Master.c reads all lines from Input.txt and creates up to 19
+child processes to sort palindromes from non-palindromes.
+
+Results are appended to palin.out and nopalin.out
+
+Usage: ./master\n");
 
 # Original Assignment
 CS 4760 Operating Systems
